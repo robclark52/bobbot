@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BobBot</title>
+<style>
+  :root {
+    --bg: #f5f5f0;
+    --card: #fff;
+    --card-alt: #fafaf7;
+    --border: #e8e8e4;
+    --bubble-bot: #f0f0ec;
+    --text: #1a1a1a;
+    --text-muted: #888;
+    --accent: #2563eb;
+    --accent-dark: #1d4ed8;
+    --danger: #dc2626;
+    --success: #16a34a;
+    --owner-accent: #7c3aed;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--text);
+  }
+
+  /* ── Container ─────────────────────────────── */
+  .container {
+    width: 100%; max-width: 640px;
+    height: 100vh; max-height: 840px;
+    background: var(--card);
+    display: flex; flex-direction: column;
+    border-radius: 12px;
+    box-shadow: 0 2px 24px rgba(0,0,0,0.08);
+    overflow: hidden;
+  }
+  @media (max-height: 860px) { .container { max-height: 100vh; border-radius: 0; } }
+
+  /* ── Login Screen ──────────────────────────── */
+  .login-screen {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 40px;
+  }
+  .login-screen h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+  .login-screen .subtitle { color: var(--text-muted); font-size: 14px; margin-bottom: 32px; }
+  .login-screen input {
+    width: 100%; max-width: 300px;
+    padding: 11px 16px; border: 1px solid #ddd; border-radius: 10px;
+    font-size: 15px; text-align: center; outline: none;
+    transition: border-color 0.2s;
+  }
+  .login-screen input:focus { border-color: var(--accent); }
+  .login-screen button {
+    margin-top: 12px; padding: 11px 32px;
+    background: var(--text); color: #fff; border: none; border-radius: 10px;
+    font-size: 15px; font-weight: 500; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .login-screen button:hover { background: #333; }
+  .login-screen .error { color: var(--danger); font-size: 13px; margin-top: 12px; }
+  .login-screen .hint { color: var(--text-muted); font-size: 12px; margin-top: 20px; }
+
+  /* ── Header ────────────────────────────────── */
+  .chat-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--card-alt);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .chat-header .left h1 { font-size: 17px; font-weight: 600; }
+  .chat-header .left .subtitle { font-size: 12px; color: var(--text-muted); }
+  .chat-header .right { display: flex; align-items: center; gap: 10px; }
+  .owner-badge {
+    font-size: 11px; padding: 3px 8px;
+    background: var(--owner-accent); color: #fff;
+    border-radius: 6px; font-weight: 500;
+  }
+  .budget-pill {
+    font-size: 11px; padding: 3px 8px;
+    background: #f0f0ec; border-radius: 6px; color: #666;
+  }
+  .header-btn {
+    background: none; border: 1px solid var(--border); border-radius: 8px;
+    padding: 5px 10px; font-size: 12px; cursor: pointer; color: #666;
+    transition: all 0.2s;
+  }
+  .header-btn:hover { background: #f0f0ec; }
+
+  /* ── Messages ──────────────────────────────── */
+  .messages {
+    flex: 1; overflow-y: auto;
+    padding: 16px 20px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .msg { max-width: 85%; line-height: 1.55; font-size: 14.5px; }
+  .msg.user {
+    align-self: flex-end;
+    background: var(--accent); color: #fff;
+    padding: 10px 15px; border-radius: 18px 18px 4px 18px;
+  }
+  .msg.bot { align-self: flex-start; }
+  .msg.bot .bubble {
+    background: var(--bubble-bot);
+    padding: 11px 15px; border-radius: 18px 18px 18px 4px;
+    white-space: pre-wrap;
+  }
+  .msg.bot .bubble p { margin-bottom: 8px; }
+  .msg.bot .bubble p:last-child { margin-bottom: 0; }
+  .msg.bot .actions {
+    margin-top: 4px; display: flex; gap: 6px;
+  }
+  .msg.bot .actions button {
+    background: none; border: none; font-size: 11px; color: var(--text-muted);
+    cursor: pointer; padding: 2px 6px; border-radius: 4px;
+    transition: all 0.15s;
+  }
+  .msg.bot .actions button:hover { background: #e8e8e4; color: var(--text); }
+
+  /* ── Teach Panel ───────────────────────────── */
+  .teach-panel {
+    margin-top: 6px; padding: 10px 12px;
+    background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 10px;
+  }
+  .teach-panel textarea {
+    width: 100%; min-height: 60px; padding: 8px 10px;
+    border: 1px solid #ddd; border-radius: 8px; font-size: 13px;
+    font-family: inherit; resize: vertical; outline: none;
+  }
+  .teach-panel textarea:focus { border-color: var(--owner-accent); }
+  .teach-panel .teach-hint { font-size: 11px; color: #888; margin-bottom: 6px; }
+  .teach-panel .teach-actions { margin-top: 6px; display: flex; gap: 6px; }
+  .teach-panel .teach-actions button {
+    padding: 5px 12px; border-radius: 6px; font-size: 12px;
+    cursor: pointer; border: none; font-weight: 500;
+  }
+  .teach-btn-save { background: var(--owner-accent); color: #fff; }
+  .teach-btn-save:hover { opacity: 0.9; }
+  .teach-btn-cancel { background: #eee; color: #666; }
+
+  /* ── Typing Indicator ──────────────────────── */
+  .typing {
+    align-self: flex-start;
+    background: var(--bubble-bot);
+    padding: 11px 16px; border-radius: 18px 18px 18px 4px;
+  }
+  .typing span {
+    display: inline-block; width: 7px; height: 7px;
+    background: #aaa; border-radius: 50%; margin-right: 4px;
+    animation: blink 1.4s infinite both;
+  }
+  .typing span:nth-child(2) { animation-delay: 0.2s; }
+  .typing span:nth-child(3) { animation-delay: 0.4s; margin-right: 0; }
+  @keyframes blink { 0%,80%,100%{opacity:.3} 40%{opacity:1} }
+
+  /* ── Suggestions ───────────────────────────── */
+  .suggestions {
+    padding: 6px 20px 10px;
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .suggestions button {
+    padding: 5px 12px; background: var(--bubble-bot);
+    border: 1px solid #ddd; border-radius: 14px;
+    font-size: 12.5px; cursor: pointer; color: #555;
+    transition: all 0.2s;
+  }
+  .suggestions button:hover { background: #e4e4df; border-color: #bbb; }
+
+  /* ── Input Area ────────────────────────────── */
+  .input-area {
+    padding: 14px 20px; border-top: 1px solid var(--border);
+    display: flex; gap: 8px; background: var(--card-alt);
+  }
+  .input-area input {
+    flex: 1; padding: 10px 15px;
+    border: 1px solid #ddd; border-radius: 22px;
+    font-size: 14.5px; outline: none; background: #fff;
+    transition: border-color 0.2s;
+  }
+  .input-area input:focus { border-color: var(--accent); }
+  .input-area button {
+    padding: 10px 18px; background: var(--text); color: #fff;
+    border: none; border-radius: 22px; font-size: 14px;
+    cursor: pointer; font-weight: 500; transition: background 0.2s;
+  }
+  .input-area button:hover { background: #333; }
+  .input-area button:disabled { background: #ccc; cursor: default; }
+
+  /* ── Lessons Modal ─────────────────────────── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .modal {
+    background: #fff; border-radius: 14px; padding: 24px;
+    width: 90%; max-width: 520px; max-height: 70vh;
+    display: flex; flex-direction: column;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  }
+  .modal h2 { font-size: 16px; margin-bottom: 12px; }
+  .modal .lessons-list {
+    flex: 1; overflow-y: auto; margin-bottom: 12px;
+  }
+  .modal .lesson-item {
+    padding: 10px 12px; margin-bottom: 8px;
+    background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px;
+    font-size: 13px; line-height: 1.4;
+  }
+  .modal .lesson-item .lesson-text { margin-bottom: 4px; }
+  .modal .lesson-item .lesson-meta {
+    font-size: 11px; color: #888;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal .lesson-item .delete-btn {
+    background: none; border: none; color: var(--danger);
+    font-size: 11px; cursor: pointer; padding: 2px 6px;
+  }
+  .modal .lesson-item .delete-btn:hover { text-decoration: underline; }
+  .modal .empty { color: #999; font-size: 14px; text-align: center; padding: 20px; }
+  .modal .close-btn {
+    align-self: flex-end; padding: 8px 20px;
+    background: #eee; border: none; border-radius: 8px;
+    font-size: 13px; cursor: pointer;
+  }
+
+  /* ── Hidden ─────────────────────────────────── */
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="container" id="app">
+
+  <!-- ── Login Screen ── -->
+  <div class="login-screen" id="login-screen">
+    <h1>Bob Clark</h1>
+    <div class="subtitle">Math person · West Village</div>
+    <input type="password" id="pw-input" placeholder="Enter password" />
+    <button id="pw-btn" onclick="doLogin()">Enter</button>
+    <div class="error hidden" id="pw-error"></div>
+    <div class="hint">Ask Bob for the password if you don't have it.</div>
+  </div>
+
+  <!-- ── Chat Screen (hidden initially) ── -->
+  <div class="hidden" id="chat-screen" style="display:none;flex:1;flex-direction:column;">
+
+    <div class="chat-header">
+      <div class="left">
+        <h1>Bob Clark</h1>
+        <div class="subtitle">Math person · West Village</div>
+      </div>
+      <div class="right">
+        <span class="owner-badge hidden" id="owner-badge">Owner</span>
+        <span class="budget-pill" id="budget-pill"></span>
+        <button class="header-btn hidden" id="lessons-btn" onclick="openLessonsModal()">Lessons</button>
+      </div>
+    </div>
+
+    <div class="messages" id="messages"></div>
+    <div class="suggestions" id="suggestions"></div>
+
+    <div class="input-area">
+      <input type="text" id="user-input" placeholder="Say something to Bob..." />
+      <button id="send-btn" onclick="doSend()">Send</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Lessons Modal ── -->
+<div class="modal-overlay hidden" id="lessons-modal" onclick="closeLessonsModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>Lessons Taught to BobBot</h2>
+    <div class="lessons-list" id="lessons-list"></div>
+    <button class="close-btn" onclick="closeLessonsModal()">Close</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONFIG — Change this to your Cloudflare Worker URL after deploying
+// ═══════════════════════════════════════════════════════════════════════════════
+const WORKER_URL = "https://bobbot.robclark52.workers.dev";
+// ═══════════════════════════════════════════════════════════════════════════════
+
+let password = "";
+let isOwner = false;
+let conversation = [];
+let isGenerating = false;
+let teachingMsgIndex = null; // which message index is being corrected
+
+const SUGGESTIONS = [
+  "What's your take on housing?",
+  "Is ideology good or bad?",
+  "What do you think of Trump?",
+  "Explain the China dove thing",
+  "What's wrong with US healthcare?",
+  "Should we cut military spending?"
+];
+
+// ─── Login ───────────────────────────────────────────────────────────────────
+
+document.getElementById("pw-input").addEventListener("keydown", e => {
+  if (e.key === "Enter") doLogin();
+});
+
+async function doLogin() {
+  const input = document.getElementById("pw-input");
+  const errEl = document.getElementById("pw-error");
+  password = input.value.trim();
+  if (!password) return;
+
+  errEl.classList.add("hidden");
+  document.getElementById("pw-btn").textContent = "Checking...";
+
+  try {
+    const res = await fetch(`${WORKER_URL}/api/status?password=${encodeURIComponent(password)}`);
+    const data = await res.json();
+
+    if (!res.ok) {
+      errEl.textContent = data.error || "Wrong password";
+      errEl.classList.remove("hidden");
+      document.getElementById("pw-btn").textContent = "Enter";
+      return;
+    }
+
+    isOwner = data.isOwner;
+    showChat(data);
+  } catch (e) {
+    errEl.textContent = "Can't reach server. Try again.";
+    errEl.classList.remove("hidden");
+    document.getElementById("pw-btn").textContent = "Enter";
+  }
+}
+
+function showChat(statusData) {
+  document.getElementById("login-screen").style.display = "none";
+  const chatScreen = document.getElementById("chat-screen");
+  chatScreen.classList.remove("hidden");
+  chatScreen.style.display = "flex";
+
+  if (isOwner) {
+    document.getElementById("owner-badge").classList.remove("hidden");
+    document.getElementById("lessons-btn").classList.remove("hidden");
+  }
+
+  updateBudget(statusData.spent, statusData.cap);
+  renderMessages();
+  renderSuggestions();
+  document.getElementById("user-input").focus();
+}
+
+// ─── Budget ──────────────────────────────────────────────────────────────────
+
+function updateBudget(spent, cap) {
+  const remaining = (cap - parseFloat(spent)).toFixed(2);
+  document.getElementById("budget-pill").textContent = `$${remaining} left`;
+}
+
+// ─── Messages ────────────────────────────────────────────────────────────────
+
+function renderMessages() {
+  const container = document.getElementById("messages");
+  container.innerHTML = "";
+
+  // Opening message (always present)
+  const opening = document.createElement("div");
+  opening.className = "msg bot";
+  opening.innerHTML = '<div class="bubble"><p>What would you like to discuss?</p></div>';
+  container.appendChild(opening);
+
+  conversation.forEach((msg, idx) => {
+    const div = document.createElement("div");
+    div.className = `msg ${msg.role === "user" ? "user" : "bot"}`;
+
+    if (msg.role === "user") {
+      div.textContent = msg.content;
+    } else {
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      msg.content.split(/\n\n+/).forEach(p => {
+        if (p.trim()) {
+          const pEl = document.createElement("p");
+          pEl.textContent = p.trim();
+          bubble.appendChild(pEl);
+        }
+      });
+      div.appendChild(bubble);
+
+      // Owner: show Correct button
+      if (isOwner) {
+        const actions = document.createElement("div");
+        actions.className = "actions";
+        const correctBtn = document.createElement("button");
+        correctBtn.textContent = "Correct this";
+        correctBtn.onclick = () => startTeaching(idx);
+        actions.appendChild(correctBtn);
+        div.appendChild(actions);
+
+        // Teaching panel (if this message is being corrected)
+        if (teachingMsgIndex === idx) {
+          const panel = document.createElement("div");
+          panel.className = "teach-panel";
+          panel.innerHTML = `
+            <div class="teach-hint">Tell BobBot how you'd actually respond, or what it got wrong:</div>
+            <textarea id="teach-text" placeholder="e.g. 'I wouldn't defend Friedman that strongly. My view is more nuanced — I think he was right on monetary policy but wrong on...'"></textarea>
+            <div class="teach-actions">
+              <button class="teach-btn-save" onclick="submitTeaching(${idx})">Save lesson</button>
+              <button class="teach-btn-cancel" onclick="cancelTeaching()">Cancel</button>
+            </div>
+          `;
+          div.appendChild(panel);
+        }
+      }
+    }
+
+    container.appendChild(div);
+  });
+
+  // Typing indicator
+  if (isGenerating) {
+    const typing = document.createElement("div");
+    typing.className = "typing";
+    typing.innerHTML = "<span></span><span></span><span></span>";
+    container.appendChild(typing);
+  }
+
+  // Scroll to bottom
+  requestAnimationFrame(() => { container.scrollTop = container.scrollHeight; });
+}
+
+function renderSuggestions() {
+  const sugContainer = document.getElementById("suggestions");
+  sugContainer.innerHTML = "";
+  if (conversation.length > 0) return;
+
+  SUGGESTIONS.forEach(s => {
+    const btn = document.createElement("button");
+    btn.textContent = s;
+    btn.onclick = () => doSend(s);
+    sugContainer.appendChild(btn);
+  });
+}
+
+// ─── Send Message ────────────────────────────────────────────────────────────
+
+document.getElementById("user-input").addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey && !isGenerating) {
+    const val = document.getElementById("user-input").value.trim();
+    if (val) doSend(val);
+  }
+});
+
+async function doSend(text) {
+  if (!text) {
+    text = document.getElementById("user-input").value.trim();
+  }
+  if (!text || isGenerating) return;
+
+  document.getElementById("user-input").value = "";
+  conversation.push({ role: "user", content: text });
+  isGenerating = true;
+  renderMessages();
+  renderSuggestions();
+
+  try {
+    const res = await fetch(`${WORKER_URL}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        password,
+        messages: conversation,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      conversation.push({ role: "assistant", content: data.error || "Something went wrong." });
+    } else {
+      conversation.push({ role: "assistant", content: data.reply });
+      if (data.spent !== undefined) updateBudget(data.spent, data.cap);
+    }
+  } catch (e) {
+    conversation.push({ role: "assistant", content: "Lost connection to the server. Try again." });
+  }
+
+  isGenerating = false;
+  renderMessages();
+  document.getElementById("user-input").focus();
+}
+
+// ─── Teaching (Owner Only) ───────────────────────────────────────────────────
+
+function startTeaching(msgIndex) {
+  teachingMsgIndex = msgIndex;
+  renderMessages();
+  requestAnimationFrame(() => {
+    const ta = document.getElementById("teach-text");
+    if (ta) ta.focus();
+  });
+}
+
+function cancelTeaching() {
+  teachingMsgIndex = null;
+  renderMessages();
+}
+
+async function submitTeaching(msgIndex) {
+  const textarea = document.getElementById("teach-text");
+  const correction = textarea.value.trim();
+  if (!correction) return;
+
+  const botMsg = conversation[msgIndex]?.content || "";
+  // Find the user message that preceded this bot message
+  const userMsg = msgIndex > 0 ? conversation[msgIndex - 1]?.content || "" : "";
+
+  textarea.disabled = true;
+
+  try {
+    const res = await fetch(`${WORKER_URL}/api/teach`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        password,
+        correction,
+        context: userMsg,
+        botMessage: botMsg,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      teachingMsgIndex = null;
+      renderMessages();
+      // Brief flash confirmation
+      const msg = document.createElement("div");
+      msg.className = "msg bot";
+      msg.innerHTML = '<div class="bubble" style="background:#f0fdf4;border:1px solid #bbf7d0"><p style="color:#166534;font-size:12px">Lesson saved. BobBot will remember this.</p></div>';
+      document.getElementById("messages").appendChild(msg);
+      document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
+    } else {
+      alert(data.error || "Failed to save lesson");
+      textarea.disabled = false;
+    }
+  } catch (e) {
+    alert("Connection error");
+    textarea.disabled = false;
+  }
+}
+
+// ─── Lessons Modal (Owner Only) ──────────────────────────────────────────────
+
+async function openLessonsModal() {
+  document.getElementById("lessons-modal").classList.remove("hidden");
+  const list = document.getElementById("lessons-list");
+  list.innerHTML = '<div class="empty">Loading...</div>';
+
+  try {
+    const res = await fetch(`${WORKER_URL}/api/lessons?password=${encodeURIComponent(password)}`);
+    const data = await res.json();
+
+    if (!data.lessons || data.lessons.length === 0) {
+      list.innerHTML = '<div class="empty">No lessons yet. Use "Correct this" on any BobBot response to teach it.</div>';
+      return;
+    }
+
+    list.innerHTML = "";
+    data.lessons.forEach(l => {
+      const item = document.createElement("div");
+      item.className = "lesson-item";
+      item.innerHTML = `
+        <div class="lesson-text">${escapeHtml(l.correction)}</div>
+        <div class="lesson-meta">
+          <span>${new Date(l.timestamp).toLocaleDateString()}</span>
+          <button class="delete-btn" onclick="deleteLesson('${l.id}')">Remove</button>
+        </div>
+      `;
+      list.appendChild(item);
+    });
+  } catch (e) {
+    list.innerHTML = '<div class="empty">Failed to load lessons.</div>';
+  }
+}
+
+function closeLessonsModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  document.getElementById("lessons-modal").classList.add("hidden");
+}
+
+async function deleteLesson(id) {
+  if (!confirm("Remove this lesson?")) return;
+
+  try {
+    await fetch(`${WORKER_URL}/api/lessons`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, lessonId: id }),
+    });
+    openLessonsModal(); // refresh
+  } catch (e) {
+    alert("Failed to delete");
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+
+</body>
+</html>
