@@ -230,6 +230,49 @@
     font-size: 13px; cursor: pointer;
   }
 
+  /* ── Log Items ────────────────────────────────── */
+  .log-item {
+    padding: 12px; margin-bottom: 10px;
+    background: #fafafa; border: 1px solid #e8e8e4; border-radius: 8px;
+    font-size: 13px; line-height: 1.5;
+  }
+  .log-item .log-user {
+    color: var(--accent); font-weight: 500; margin-bottom: 6px;
+  }
+  .log-item .log-bot {
+    color: var(--text); margin-bottom: 6px;
+    white-space: pre-wrap; max-height: 120px; overflow-y: auto;
+  }
+  .log-item .log-meta {
+    font-size: 11px; color: #888;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .log-item .log-actions { display: flex; gap: 8px; }
+  .log-item .log-actions button {
+    background: none; border: none; font-size: 11px;
+    cursor: pointer; padding: 2px 6px;
+  }
+  .log-item .log-actions .correct-btn { color: var(--owner-accent); }
+  .log-item .log-actions .correct-btn:hover { text-decoration: underline; }
+  .log-item .log-actions .delete-btn { color: var(--danger); }
+  .log-item .log-actions .delete-btn:hover { text-decoration: underline; }
+  .log-item .log-teach-panel {
+    margin-top: 8px; padding: 8px 10px;
+    background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 8px;
+  }
+  .log-item .log-teach-panel textarea {
+    width: 100%; min-height: 50px; padding: 6px 8px;
+    border: 1px solid #ddd; border-radius: 6px; font-size: 12px;
+    font-family: inherit; resize: vertical; outline: none;
+  }
+  .log-item .log-teach-panel .teach-actions {
+    margin-top: 6px; display: flex; gap: 6px;
+  }
+  .log-item .log-teach-panel .teach-actions button {
+    padding: 4px 10px; border-radius: 6px; font-size: 11px;
+    cursor: pointer; border: none; font-weight: 500;
+  }
+
   /* ── Hidden ─────────────────────────────────── */
   .hidden { display: none !important; }
 </style>
@@ -259,6 +302,7 @@
       <div class="right">
         <span class="owner-badge hidden" id="owner-badge">Owner</span>
         <span class="budget-pill" id="budget-pill"></span>
+        <button class="header-btn hidden" id="logs-btn" onclick="openLogsModal()">Logs</button>
         <button class="header-btn hidden" id="lessons-btn" onclick="openLessonsModal()">Lessons</button>
       </div>
     </div>
@@ -280,6 +324,15 @@
     <h2>Lessons Taught to BobBot</h2>
     <div class="lessons-list" id="lessons-list"></div>
     <button class="close-btn" onclick="closeLessonsModal()">Close</button>
+  </div>
+</div>
+
+<!-- ── Logs Modal ── -->
+<div class="modal-overlay hidden" id="logs-modal" onclick="closeLogsModal(event)">
+  <div class="modal" style="max-width:620px;max-height:80vh;" onclick="event.stopPropagation()">
+    <h2>Conversation Logs</h2>
+    <div class="lessons-list" id="logs-list"></div>
+    <button class="close-btn" onclick="closeLogsModal()">Close</button>
   </div>
 </div>
 
@@ -348,6 +401,7 @@ function showChat(statusData) {
 
   if (isOwner) {
     document.getElementById("owner-badge").classList.remove("hidden");
+    document.getElementById("logs-btn").classList.remove("hidden");
     document.getElementById("lessons-btn").classList.remove("hidden");
   }
 
@@ -610,6 +664,142 @@ async function deleteLesson(id) {
     alert("Failed to delete");
   }
 }
+
+// ─── Logs Modal (Owner Only) ─────────────────────────────────────────────────
+
+let logsTeachingId = null; // which log entry is being corrected
+
+async function openLogsModal() {
+  document.getElementById("logs-modal").classList.remove("hidden");
+  const list = document.getElementById("logs-list");
+  list.innerHTML = '<div class="empty">Loading...</div>';
+
+  try {
+    const res = await fetch(`${WORKER_URL}/api/logs?password=${encodeURIComponent(password)}`);
+    const data = await res.json();
+
+    if (!data.logs || data.logs.length === 0) {
+      list.innerHTML = '<div class="empty">No conversation logs yet.</div>';
+      return;
+    }
+
+    renderLogs(data.logs);
+  } catch (e) {
+    list.innerHTML = '<div class="empty">Failed to load logs.</div>';
+  }
+}
+
+function renderLogs(logs) {
+  const list = document.getElementById("logs-list");
+  list.innerHTML = "";
+
+  logs.forEach(log => {
+    const item = document.createElement("div");
+    item.className = "log-item";
+
+    const ownerTag = log.isOwnerChat ? ' <span style="color:var(--owner-accent);font-size:10px;">(owner)</span>' : '';
+    const botPreview = log.botResponse.length > 300 ? log.botResponse.slice(0, 300) + "..." : log.botResponse;
+
+    let teachPanel = "";
+    if (logsTeachingId === log.id) {
+      teachPanel = `
+        <div class="log-teach-panel">
+          <textarea id="log-teach-text" placeholder="How should BobBot have responded?"></textarea>
+          <div class="teach-actions">
+            <button class="teach-btn-save" onclick="submitLogTeaching('${log.id}')">Save lesson</button>
+            <button class="teach-btn-cancel" onclick="cancelLogTeaching()">Cancel</button>
+          </div>
+        </div>
+      `;
+    }
+
+    item.innerHTML = `
+      <div class="log-user">Friend asked: ${escapeHtml(log.userMessage)}</div>
+      <div class="log-bot">BobBot: ${escapeHtml(botPreview)}</div>
+      <div class="log-meta">
+        <span>${new Date(log.timestamp).toLocaleString()}${ownerTag}</span>
+        <div class="log-actions">
+          <button class="correct-btn" onclick="startLogTeaching('${log.id}')">Correct this</button>
+          <button class="delete-btn" onclick="deleteLog('${log.id}')">Delete</button>
+        </div>
+      </div>
+      ${teachPanel}
+    `;
+    list.appendChild(item);
+  });
+}
+
+function closeLogsModal(e) {
+  if (e && e.target !== e.currentTarget) return;
+  logsTeachingId = null;
+  document.getElementById("logs-modal").classList.add("hidden");
+}
+
+function startLogTeaching(logId) {
+  logsTeachingId = logId;
+  openLogsModal(); // re-render with teach panel open
+}
+
+function cancelLogTeaching() {
+  logsTeachingId = null;
+  openLogsModal(); // re-render without teach panel
+}
+
+async function submitLogTeaching(logId) {
+  const textarea = document.getElementById("log-teach-text");
+  const correction = textarea.value.trim();
+  if (!correction) return;
+
+  textarea.disabled = true;
+
+  // Find the log entry to get context
+  try {
+    const logsRes = await fetch(`${WORKER_URL}/api/logs?password=${encodeURIComponent(password)}`);
+    const logsData = await logsRes.json();
+    const logEntry = logsData.logs.find(l => l.id === logId);
+
+    const res = await fetch(`${WORKER_URL}/api/teach`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        password,
+        correction,
+        context: logEntry ? logEntry.userMessage : "",
+        botMessage: logEntry ? logEntry.botResponse.slice(0, 500) : "",
+      }),
+    });
+
+    const data = await res.json();
+    if (res.ok) {
+      logsTeachingId = null;
+      alert("Lesson saved! BobBot will remember this.");
+      openLogsModal(); // refresh
+    } else {
+      alert(data.error || "Failed to save lesson");
+      textarea.disabled = false;
+    }
+  } catch (e) {
+    alert("Connection error");
+    textarea.disabled = false;
+  }
+}
+
+async function deleteLog(id) {
+  if (!confirm("Delete this log entry?")) return;
+
+  try {
+    await fetch(`${WORKER_URL}/api/logs`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, logId: id }),
+    });
+    openLogsModal(); // refresh
+  } catch (e) {
+    alert("Failed to delete");
+  }
+}
+
+// ─── Utilities ──────────────────────────────────────────────────────────────
 
 function escapeHtml(str) {
   const div = document.createElement("div");
